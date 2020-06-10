@@ -7,35 +7,23 @@ Parameters:
     Default: MyCloudTrailMetrics
   CloudWatchMetricName:
     Type: String
-    Default: lambda-metrics
+    Default: emergency_info
   SNSEndpoint:
     Type: String
     Default: jing.sun@rea-group.com
   SNSTopicName:
     Type: String
     Default: LambdaBadLogAlarm
-  CloudWatchDimensionName:
-    Type: String
-    Default: bad_log
-  CloudWatchDimensionValue:
-    Type: String
-    Default: SoBad
 
 Resources:
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      Code: ../lambda-basic
+      Code: ../lambda-custom
       Handler: index.handler
       Role: !GetAtt LambdaExecutionRole.Arn
       Runtime: "nodejs12.x"
       Timeout: 900
-      Environment:
-        Variables:
-          CW_METRIC_NAMESPACE: !Ref CloudWatchMetricsNS
-          CW_METRIC_NAME: !Ref CloudWatchMetricName
-          CW_DIMENSION_NAME: !Ref CloudWatchDimensionName
-          CW_DIMENSION_VALUE: !Ref CloudWatchDimensionValue
 
   LambdaExecutionRole:
     Type: AWS::IAM::Role
@@ -59,14 +47,11 @@ Resources:
                   - logs:PutLogEvents
                 Resource:
                   - arn:aws:logs:*:*:log-group:/aws/lambda/*:*
-        - PolicyName: lambda-cloudwatch
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              - Effect: Allow
-                Action:
-                  - cloudwatch:PutMetricData
-                Resource: "*"
+
+  LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${LambdaFunction}
 
   AlarmSNSTopic:
     Properties:
@@ -93,14 +78,22 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt CloudWatchTriggerLambdaRule.Arn
 
-  # period = 5min, sum data points in period
-  # the EvaluationPeriods=1个
+  MetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref LambdaLogGroup
+      FilterPattern: INFO Emergency
+      MetricTransformations:
+        - MetricNamespace: !Ref CloudWatchMetricsNS
+          MetricName: !Ref CloudWatchMetricName
+          MetricValue: 1
+
   LambdaMetricsAlarm:
     Type: AWS::CloudWatch::Alarm
     DependsOn:
       - AlarmSNSTopic
     Properties:
-      AlarmDescription: Lambda bad log alarm
+      AlarmDescription: Lambda custom log alarm
       AlarmName: !Ref LambdaMetricsAlarmName
       AlarmActions:
         - !Ref AlarmSNSTopic
@@ -111,7 +104,3 @@ Resources:
       MetricName: !Ref CloudWatchMetricName
       Namespace: !Ref CloudWatchMetricsNS
       Period: 300
-      Dimensions:
-        -
-          Name: bad_log
-          Value: SoBad

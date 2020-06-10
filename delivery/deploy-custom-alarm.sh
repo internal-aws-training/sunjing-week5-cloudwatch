@@ -4,8 +4,8 @@ cd $(dirname $0)/..
 
 BUCKET_NAME=sj-lambda-code
 #BUCKET_NAME=sj-learning-aws-code
-TEMPLATE=template-basic-alarm
-NAME=week5-basic
+TEMPLATE=template-custom-alarm
+NAME=week5-custom
 
 echo "package ..."
 aws cloudformation \
@@ -16,8 +16,8 @@ aws cloudformation \
   --output-template-file ${TEMPLATE}.yml
 
 echo "deploy stack: ${TEMPLATE}, stack name is ${NAME}"
-aws cloudformation deploy\
-  --stack-name ${NAME}\
+aws cloudformation deploy \
+  --stack-name ${NAME} \
   --template-file ./${TEMPLATE}.yml\
-  --region ap-southeast-2\
+  --region ap-southeast-2 \
   --capabilities CAPABILITY_IAM
